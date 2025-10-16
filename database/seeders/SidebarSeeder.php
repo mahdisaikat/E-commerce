@@ -40,6 +40,18 @@ class SidebarSeeder extends Seeder {
                 'route' => null,
                 'icon' => 'fa-solid fa-sliders',
             ],
+            [
+                'label' => 'Website Management',
+                'serial' => 5.00,
+                'route' => null,
+                'icon' => 'fa-solid fa-toolbox',
+            ],
+            [
+                'label' => 'Shop Management',
+                'serial' => 6.00,
+                'route' => null,
+                'icon' => 'fa-solid fa-shop',
+            ],
 
             // Child Sidebar Menus
             [
@@ -115,7 +127,44 @@ class SidebarSeeder extends Seeder {
                 'parent_id' => 4,
             ],
 
+            [
+                'serial' => 5.10,
+                'route' => 'posts.index',
+                'parent_id' => 5,
+            ],
+            [
+                'serial' => 5.20,
+                'route' => 'sliders.index',
+                'parent_id' => 5,
+            ],
+            [
+                'serial' => 5.30,
+                'route' => 'contacts.index',
+                'parent_id' => 5,
+            ],
+            [
+                'serial' => 5.40,
+                'route' => 'newsletters.index',
+                'parent_id' => 5,
+            ],
 
+            [
+                'serial' => 6.10,
+                'route' => 'categories.index',
+                'parent_id' => 6,
+            ],
+            [
+                'serial' => 6.20,
+                'route' => 'products.index',
+                'parent_id' => 6,
+            ],
+            [
+                'serial' => 6.30,
+                'route' => 'color.tags',
+                'parent_id' => 6,
+            ],
+
+            
         ];
 
         $permissions = Permission::all()->keyBy('name');

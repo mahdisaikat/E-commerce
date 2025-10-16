@@ -1,5 +1,13 @@
 <?php
 
+use App\Http\Controllers\Backend\ContactController;
+use App\Http\Controllers\Backend\NewsletterController;
+use App\Http\Controllers\Backend\PostController;
+use App\Http\Controllers\Backend\CategoryController;
+use App\Http\Controllers\Backend\ProductController;
+use App\Http\Controllers\Backend\ProductTagController;
+use App\Http\Controllers\Backend\SliderController;
+use App\Http\Controllers\Backend\TagController;
 use App\Http\Controllers\ConfigurationController;
 use App\Http\Controllers\DesignationController;
 use App\Http\Controllers\ExamController;
@@ -19,36 +27,30 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 
-Route::get('/', function ()
-{
+Route::get('/', function () {
     return redirect()->route(Auth::check() ? 'dashboard' : 'login');
 });
 
-Route::get('login', function ()
-{
+Route::get('login', function () {
     return view('frontend.login');
 });
 
-Route::get('register', function ()
-{
+Route::get('register', function () {
     return view('backend.auth.register');
 });
 
 require __DIR__ . '/backend.php';
 
-Route::fallback(function ()
-{
+Route::fallback(function () {
     return view('backend.common.errors');
 })->where('any', '.*');
 
-Route::middleware(['auth'])->group(function ()
-{
+Route::middleware(['auth'])->group(function () {
     Route::get('dashboard', [HomeController::class, 'dashboard'])->name('dashboard');
 
     Route::resource('users', UserController::class);
     Route::post('users-status', [UserController::class, 'status'])->name('users.status');
-    Route::prefix('users/')->name('users.permission.')->group(function ()
-    {
+    Route::prefix('users/')->name('users.permission.')->group(function () {
         Route::get('permission/{id}', [UserController::class, 'edit_permission'])->name('edit');
         Route::post('permission/{id}', [UserController::class, 'update_permission'])->name('update');
     });
@@ -68,6 +70,41 @@ Route::middleware(['auth'])->group(function ()
     Route::get('color-config', [ConfigurationController::class, 'config_settings'])->name('color.config');
     Route::post('configurations-settings', [ConfigurationController::class, 'system_settings_update'])->name('configurations.settings');
     Route::get('system-settings', [ConfigurationController::class, 'system_settings'])->name('system.settings');
+
+    // .............. Category ...............
+    Route::resource('categories', CategoryController::class);
+    Route::post('categories-status', [CategoryController::class, 'status'])->name('categories.status');
+    Route::get('categories-get', [CategoryController::class, 'getCategory'])->name('categories.get');
+    Route::get('categories-products', [CategoryController::class, 'getCategoryProducts'])->name('categories.products');
+
+    // .............. Post ...............
+    Route::resource('posts', PostController::class);
+    Route::post('posts-status', [PostController::class, 'status'])->name('posts.status');
+
+    // .............. Product ...............
+    Route::resource('products', ProductController::class);
+    Route::post('products-status', [ProductController::class, 'status'])->name('products.status');
+    Route::get('products/get', [ProductController::class, 'getProduct'])->name('products.get');
+
+    // .............. Contact ...............
+    Route::resource('contacts', ContactController::class);
+    Route::post('contacts-status', [ContactController::class, 'status'])->name('contacts.status');
+
+    // .............. Newsletter ...............
+    Route::resource('newsletters', NewsletterController::class);
+    Route::post('newsletters-status', [NewsletterController::class, 'status'])->name('newsletters.status');
+
+    // .............. Slider ...............
+    Route::resource('sliders', SliderController::class);
+    Route::post('sliders-status', [SliderController::class, 'status'])->name('sliders.status');
+
+    // .............. Tag ...............
+    Route::resource('tags', TagController::class);
+    Route::post('tags-status', [TagController::class, 'status'])->name('tags.status');
+
+    // .............. Product Tag ...............
+    Route::resource('product-tags', ProductTagController::class);
+    Route::post('product-tags-status', [ProductTagController::class, 'status'])->name('product-tags.status');
 
     // .............. Designation ...............
     Route::resource('designations', DesignationController::class);

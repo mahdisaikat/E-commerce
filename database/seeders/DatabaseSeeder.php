@@ -79,14 +79,15 @@ class DatabaseSeeder extends Seeder
                 'created_at' => $now,
                 'updated_at' => $now,
             ],
-            
+
         ];
         Role::insertOrIgnore($array);
 
         $this->call([
-            // ConfigurationSeeder::class,
+            ConfigurationSeeder::class,
             PermissionsSeeder::class,
             SidebarSeeder::class,
+            TagSeeder::class,
         ]);
     }
 }

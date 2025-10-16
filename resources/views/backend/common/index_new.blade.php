@@ -7,9 +7,9 @@
     <div class="row">
         <div class="col-12">
             <div class="card mb-4">
-                {{-- <div class="card-header">
+                <div class="card-header">
                     {{ !empty($title) ? $title : ucfirst(explode('.', Route::currentRouteName())[0]) }}
-                </div> --}}
+                </div>
                 <div class="card-body">
                     <div class="table-responsive">
                         {!! $dataTable->table() !!}
@@ -19,6 +19,7 @@
         </div>
     </div>
 
+    {{-- Add/Edit Modals --}}
     @if(isset($formFields) && !empty($formFields))
         @foreach(['add', 'edit'] as $action)
             <div class="modal fade" id="{{ $action }}Modal" tabindex="-1" data-coreui-backdrop="static"
@@ -36,9 +37,6 @@
                             @if($action == 'edit') @method('PATCH') @endif
                             <input type="hidden" name="id" class="id">
                             <div class="modal-body">
-                                <div id="imagePreview" style="width: 500px; height: 500px; display: none;">
-                                    <img id="previewImage" src="" alt="Preview">
-                                </div>
                                 <div class="row">
                                     @foreach($formFields as $index => $field)
                                         <div class="{{ count($formFields) > 4 ? 'col-md-6' : 'col-md-12' }}">
@@ -71,9 +69,6 @@
                                                             @endif
                                                         </label>
                                                     </div>
-                                                @elseif($field['type'] == 'file')
-                                                    <input type="file" id="imageInput" name="{{ $field['name'] }}"
-                                                        class="form-control {{ $field['name'] }} @error($field['name']) is-invalid @enderror">
                                                 @elseif($field['type'] == 'date')
                                                     <input type="date" name="{{ $field['name'] }}" id="{{ $field['name'] }}"
                                                         class="form-control {{ $field['name'] }} @error($field['name']) is-invalid @enderror"
@@ -81,6 +76,10 @@
                                                 @elseif($field['type'] == 'number')
                                                     <input type="number" name="{{ $field['name'] }}" id="{{ $field['name'] }}"
                                                         class="form-control {{ $field['name'] }} @error($field['name']) is-invalid @enderror">
+                                                @elseif($field['type'] == 'default')
+                                                    <input type="hidden" name="{{ $field['name'] }}" id="{{ $field['name'] }}"
+                                                        class="form-control {{ $field['name'] }} @error($field['name']) is-invalid @enderror"
+                                                        value="{{ $field['value'] }}">
                                                 @else
                                                     <input type="{{ $field['type'] ?? 'text' }}" name="{{ $field['name'] }}"
                                                         id="{{ $field['name'] }}"
@@ -98,10 +97,10 @@
                                     @endforeach
                                 </div>
                             </div>
-                            <div class="modal-footer">
+                            <div class="modal-footer justify-content-between">
                                 <button type="reset" class="btn btn-warning btn-sm"
                                     data-coreui-dismiss="modal">@lang('backend.close')</button>
-                                <button type="submit" id="uploadBtn" style="display: none;"
+                                <button type="submit"
                                     class="btn btn-success btn-sm">{{ $action == 'add' ? __('backend.save') : __('backend.update') }}</button>
                             </div>
                         </form>
@@ -110,6 +109,23 @@
             </div>
         @endforeach
     @endif
+
+    {{-- View Modal --}}
+    <div class="modal fade" id="viewModal" tabindex="-1" data-coreui-backdrop="static" data-coreui-keyboard="false">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">View {{ $name ?? ucfirst(explode('.', Route::currentRouteName())[0]) }}</h5>
+                    <button type="button" class="btn-close" data-coreui-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <dl class="row" id="viewFieldsContainer">
+                        <!-- Fields will be dynamically inserted here by JavaScript -->
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
 @endsection
 
 @push('scripts')
@@ -119,6 +135,10 @@
         $(document).ready(function () {
             let table = $('#{{ $name }}-datatable').DataTable();
             let baseRoute = "{{ url('/') }}/{{ $route }}";
+
+            // Pass the form field definitions from PHP to JavaScript as a JSON object.
+            // This is the key to avoiding the "already declared" error.
+            const formFields = @json($formFields ?? []);
 
             function handleFormSubmit(formId, method, url) {
                 $(`#${formId}`).off('submit').on('submit', function (e) {
@@ -152,7 +172,7 @@
                             submitButton.attr('disabled', false).text(method === 'POST' ? 'Save' : 'Update');
                             let errors = response.responseJSON.errors;
                             $('.invalid-feedback').remove();
-                            $(`#${formId} input:not([name='_token'])`).removeClass("is-invalid");
+                            $(`#${formId} input, #${formId} select, #${formId} textarea`).removeClass("is-invalid");
                             for (let field in errors) {
                                 let errorMessage = errors[field][0];
                                 $(`[name="${field}"]`).addClass("is-invalid").after(`<div class="invalid-feedback">${errorMessage}</div>`);
@@ -169,8 +189,17 @@
                     type: "GET",
                     url: `${baseRoute}/${id}/edit`,
                     success: function (data) {
+                        // Reset previous validation errors
+                        $('#edit .invalid-feedback').remove();
+                        $('#edit input, #edit select, #edit textarea').removeClass("is-invalid");
+
                         for (let field in data) {
-                            $(`.${field}`).val(data[field]);
+                            // Handle checkbox state
+                            if ($(`.edit .${field}`).is(':checkbox')) {
+                                $(`.edit .${field}`).prop('checked', data[field] == 1);
+                            } else {
+                                $(`.${field}`).val(data[field]);
+                            }
                         }
                         handleFormSubmit('edit', 'PATCH', `${baseRoute}/${id}`);
                     },
@@ -179,67 +208,64 @@
                     }
                 });
             };
-        });
 
-        document.getElementById('imageInput').addEventListener('change', function (e) {
-            if (e.target.files.length === 0) return;
+            window.view = function (id) {
+                $.ajax({
+                    type: "GET",
+                    url: `${baseRoute}/${id}`,
+                    success: function (data) {
 
-            const file = e.target.files[0];
-            const reader = new FileReader();
+                        let container = $('#viewFieldsContainer');
+                        container.empty();
 
-            reader.onload = function (event) {
-                const preview = document.getElementById('previewImage');
-                preview.src = event.target.result;
+                        // Render fields from formFields
+                        formFields.forEach(field => {
+                            if (field.type === 'default') return;
 
-                document.getElementById('imagePreview').style.display = 'block';
-                document.getElementById('uploadBtn').style.display = 'block';
+                            const fieldLabel = field.label || field.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                            let value = field.name.split('.').reduce((o, i) => o ? o[i] : undefined, data);
 
-                // Initialize cropper
-                const cropper = new Cropper(preview, {
-                    aspectRatio: 1, // Square aspect ratio
-                    viewMode: 1,
-                    autoCropArea: 0.8,
-                    responsive: true,
-                    guides: true
-                });
+                            if (field.type === 'select' && field.options && field.options[value]) {
+                                value = field.options[value];
+                            } else if (field.type === 'checkbox') {
+                                value = value == 1 ? 'Yes' : 'No';
+                            } else if (field.name.includes('image') || field.name.includes('avatar')) {
+                                if (Array.isArray(data.images) && data.images.length > 0) {
+                                    const imagePath = `/storage/images/${data.images[0].type}/${data.images[0].filename}`;
+                                    value = `<img src="${imagePath}" alt="${fieldLabel}" style="max-width: 100px; max-height: 100px; border-radius: 5px;">`;
+                                } else {
+                                    value = '-';
+                                }
+                            } else {
+                                value = (value === null || value === undefined || value === '') ? '-' : value;
+                            }
 
-                // Handle upload button click
-                document.getElementById('uploadBtn').addEventListener('click', function () {
-                    // Get cropped canvas
-                    cropper.getCroppedCanvas({
-                        width: 800,
-                        height: 800,
-                        minWidth: 256,
-                        minHeight: 256,
-                        maxWidth: 4096,
-                        maxHeight: 4096,
-                        fillColor: '#fff',
-                        imageSmoothingEnabled: true,
-                        imageSmoothingQuality: 'high',
-                    }).toBlob(function (blob) {
-                        // Create form data
-                        const formData = new FormData();
-                        formData.append('image', blob, file.name);
-                        formData.append('_token', '{{ csrf_token() }}');
+                            container.append(`
+                                        <dt class="col-sm-4">${fieldLabel}</dt>
+                                        <dd class="col-sm-8">${value}</dd>
+                                    `);
+                        });
 
-                        // Upload to server
-                        fetch('/upload-image', {
-                            method: 'POST',
-                            body: formData
-                        })
-                            .then(response => response.json())
-                            .then(data => {
-                                console.log('Upload successful:', data);
-                                // Handle success
-                            })
-                            .catch(error => {
-                                console.error('Error:', error);
-                            });
-                    }, file.type);
+                        if (data.hasOwnProperty('status')) {
+                            let statusLabel = data.status == 1
+                                ? '<span class="badge bg-success">Active</span>'
+                                : '<span class="badge bg-warning">Inactive</span>';
+
+                            container.append(`
+                                        <dt class="col-sm-4">Status</dt>
+                                        <dd class="col-sm-8">${statusLabel}</dd>
+                                    `);
+                        }
+
+                        $('#viewModal').modal('show');
+                    },
+                    error: function (xhr) {
+                        console.error('Failed to load view data:', xhr.responseText);
+                        showToast({ icon: 'error', title: 'Failed to load data' });
+                    }
                 });
             };
 
-            reader.readAsDataURL(file);
         });
     </script>
 @endpush
